@@ -3,13 +3,13 @@ kafkaSelector:
   path: /app/kafka.config
   prefix: KAFKA_
 interceptors:
-  - name: loggingInterceptor
-    pluginClass: io.conduktor.example.loggerinterceptor.LoggerInterceptorPlugin
-    timeoutMs: 30000 #optional, default timeoutMs = 30s
-    priority: 100
-    config:
-      - key: "loggingStyle"
-        value: "obiWan"
+- name: loggingInterceptor
+  pluginClass: io.conduktor.example.loggerinterceptor.LoggerInterceptorPlugin
+  timeoutMs: 30000 #optional, default timeoutMs = 30s
+  priority: 100
+  config:
+  - key: "loggingStyle"
+    value: "obiWan"
 hostPortConfiguration:
   gatewayBindHost: 0.0.0.0
   gatewayHost: gateway
