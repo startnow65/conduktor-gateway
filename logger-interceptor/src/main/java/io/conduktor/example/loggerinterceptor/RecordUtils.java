@@ -15,11 +15,18 @@
 
 package io.conduktor.example.loggerinterceptor;
 
+import com.google.protobuf.DynamicMessage;
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClientConfig;
+import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.*;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -56,6 +63,30 @@ public class RecordUtils {
         buf.flip();
         return MemoryRecords.readableRecords(buf);
 
+    }
+
+    public static String readRecords(BaseRecords records) {
+        StringBuilder strBuilder = new StringBuilder();
+        SchemaRegistryClientConfig srConfig = new SchemaRegistryClientConfig();
+//        SchemaRegistryClient srClient = new CachedSchemaRegistryClient("");
+        KafkaProtobufDeserializer<DynamicMessage> deserializer = new KafkaProtobufDeserializer<DynamicMessage>();
+
+        ((MemoryRecords) records).batches().forEach(batch -> {
+            batch.forEach(record -> {
+                strBuilder.append("Key: ");
+                strBuilder.append(StandardCharsets.UTF_8.decode(record.key()));
+                strBuilder.append("\n");
+
+                strBuilder.append("Value: ");
+                strBuilder.append(StandardCharsets.UTF_8.decode(record.value()));
+                strBuilder.append("\n");
+
+//                deserializer.deserialize()
+
+            });
+        });
+
+        return strBuilder.toString();
     }
 
     private static Header[] addHeader(Header[] headers, String key, String value) {

@@ -1,6 +1,7 @@
 kafkaSelector:
-  type: file
-  path: gateway-core/config/kafka.config
+  type: env
+  path: /app/kafka.config
+  prefix: KAFKA_
 interceptors:
   - name: loggingInterceptor
     pluginClass: io.conduktor.example.loggerinterceptor.LoggerInterceptorPlugin
@@ -9,3 +10,21 @@ interceptors:
     config:
       - key: "loggingStyle"
         value: "obiWan"
+hostPortConfiguration:
+  gatewayBindHost: 0.0.0.0
+  gatewayHost: gateway
+  portRange: 6969:6975
+authenticationConfig:
+  authenticatorType: NONE
+  userPool: []
+  # exponentialBackoff:
+  #   multiplier: 2
+  #   backoffMaxMs: 5000
+  sslConfig:
+    updateContextIntervalMinutes: 5
+    keyStore:
+      keyStorePath: None
+      keyStorePassword: None
+      keyPassword: None
+      keyStoreType: jks
+      updateIntervalMsecs: 600000

@@ -8,7 +8,7 @@
     <version>0.5.0-SNAPSHOT</version>
     <modules>
         <module>gateway-core</module>
-        <module>gateway-test</module>
+<!--        <module>gateway-test</module>-->
         <module>logger-interceptor</module>
         <module>interceptor-framework</module>
     </modules>
@@ -71,6 +71,10 @@
             <url>https://repo1.maven.org/maven2</url>
         </repository>
         <repository>
+            <id>mvnrepository</id>
+            <url>https://mvnrepository.com/artifact</url>
+        </repository>
+        <repository>
             <id>github-conduktor</id>
             <name>GitHub Conduktor Apache Maven Packages</name>
             <url>https://maven.pkg.github.com/conduktor/_/</url>
@@ -101,16 +105,16 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-            <plugin>
-                <artifactId>maven-release-plugin</artifactId>
-                <version>3.0.0</version>
-                <configuration>
-                    <scmCommentPrefix>[release]</scmCommentPrefix>
-                    <scmReleaseCommitComment>@{prefix} @{releaseLabel}</scmReleaseCommitComment>
-                    <tagNameFormat>@{project.version}</tagNameFormat>
-                    <projectVersionPolicyId>SemVerVersionPolicy</projectVersionPolicyId>
-                </configuration>
-            </plugin>
+<!--            <plugin>-->
+<!--                <artifactId>maven-release-plugin</artifactId>-->
+<!--                <version>3.0.0</version>-->
+<!--                <configuration>-->
+<!--                    <scmCommentPrefix>[release]</scmCommentPrefix>-->
+<!--                    <scmReleaseCommitComment>@{prefix} @{releaseLabel}</scmReleaseCommitComment>-->
+<!--                    <tagNameFormat>@{project.version}</tagNameFormat>-->
+<!--                    <projectVersionPolicyId>SemVerVersionPolicy</projectVersionPolicyId>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 
@@ -123,11 +127,11 @@
 
 
     <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/conduktor/conduktor-gateway</url>
-        </repository>
+<!--        <repository>-->
+<!--            <id>github</id>-->
+<!--            <name>GitHub Packages</name>-->
+<!--            <url>https://maven.pkg.github.com/conduktor/conduktor-gateway</url>-->
+<!--        </repository>-->
     </distributionManagement>
 
 </project>

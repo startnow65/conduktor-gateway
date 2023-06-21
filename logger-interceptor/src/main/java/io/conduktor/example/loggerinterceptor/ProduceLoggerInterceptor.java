@@ -41,6 +41,12 @@ public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
             });
         });
 
+        input.data().topicData().forEach(data -> {
+            data.partitionData().forEach(partitionData -> {
+                log.warn("Record to partition {}  of topic {} is {}", partitionData.index(), data.name(), RecordUtils.readRecords(partitionData.records()));
+            });
+        });
+
         return CompletableFuture.completedFuture(input);
     }
 
