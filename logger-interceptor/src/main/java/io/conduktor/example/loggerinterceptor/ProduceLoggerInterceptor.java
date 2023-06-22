@@ -27,8 +27,6 @@ import java.util.concurrent.CompletionStage;
 
 @Slf4j
 public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
-    private final SchemaRegistryClient schemaRegistryClient;
-
     private final GatewayEncryption encryptor;
     private final ProtoSerializer serializer;
     private final ProtoDeserializer deserializer;
@@ -36,7 +34,6 @@ public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
     public ProduceLoggerInterceptor(SchemaRegistryClient schemaRegistryClient,
                                     GatewayEncryption encryptor) {
 
-        this.schemaRegistryClient = schemaRegistryClient;
         this.encryptor = encryptor;
         this.serializer = new ProtoSerializer(schemaRegistryClient);
         this.deserializer = new ProtoDeserializer(schemaRegistryClient);
@@ -55,7 +52,7 @@ public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
                 try {
                     partitionProduceData.setRecords(RecordUtils.processBatches(topicProduceData.name(), RecordUtils.addHeaderToRecords(
                             partitionProduceData.records(),
-                            "fromClient", getAuditEntry(interceptorContext)), deserializer, serializer, encryptor));
+                            "fromClient", getAuditEntry(interceptorContext)), deserializer, serializer, encryptor, true));
                 } catch (Exception e) {
                     log.error(e.getMessage());
                     throw new RuntimeException(e);

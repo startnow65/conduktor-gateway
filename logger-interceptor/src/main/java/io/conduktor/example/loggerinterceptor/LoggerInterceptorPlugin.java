@@ -56,7 +56,7 @@ public class LoggerInterceptorPlugin implements Plugin {
         return List.of(
                 new InterceptorProvider<>(AbstractRequestResponse.class, new AllLoggerInterceptor(prefix)),
                 new InterceptorProvider<>(FetchRequest.class, new FetchRequestLoggerInterceptor()),
-                new InterceptorProvider<>(FetchResponse.class, new FetchResponseLoggerInterceptor()),
+                new InterceptorProvider<>(FetchResponse.class, new FetchResponseLoggerInterceptor(schemaRegistryClient, encryptor)),
                 new InterceptorProvider<>(ProduceRequest.class, new ProduceLoggerInterceptor(schemaRegistryClient, encryptor)),
                 new InterceptorProvider<>(AbstractResponse.class, new ResponseLoggerInterceptor())
         );

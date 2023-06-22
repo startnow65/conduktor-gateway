@@ -63,7 +63,18 @@ public class RecordUtils {
 
     }
 
-    public static BaseRecords processBatches(String topic, BaseRecords records, ProtoDeserializer deserializer, ProtoSerializer serializer, GatewayEncryption encryptor) throws Exception {
+    /**
+     * Processes a batch, unpacks the raw record and find fields that should be encrypted/decrypted
+     * @param topic
+     * @param records
+     * @param deserializer
+     * @param serializer
+     * @param encryptor
+     * @param encrypt When true, relevant fields in records in the batch is encrypted, otherwise, they are decrypted
+     * @return
+     * @throws Exception
+     */
+    public static BaseRecords processBatches(String topic, BaseRecords records, ProtoDeserializer deserializer, ProtoSerializer serializer, GatewayEncryption encryptor, boolean encrypt) throws Exception {
         var batchMap = new LinkedHashMap<RecordBatch, List<RecordAndOffset>>();
         AtomicInteger batchesTotalSize = new AtomicInteger();
 
@@ -93,7 +104,9 @@ public class RecordUtils {
                         modifiedMessageBuilder.setField(
                                 fieldDescriptorMap.get(field.getName()),
                                 field.isShouldModify() ?
-                                        encryptor.encryptAES(field.getValue().toString(), unpackedRecord.getKey()) :
+                                        (encrypt ?
+                                                encryptor.encryptAES(field.getValue().toString(), unpackedRecord.getKey()) :
+                                                tryDecrypt(encryptor, unpackedRecord, field)) :
                                         field.getValue()
                         );
                     }
@@ -132,6 +145,16 @@ public class RecordUtils {
 
         buf.flip();
         return MemoryRecords.readableRecords(buf);
+    }
+
+    private static String tryDecrypt(GatewayEncryption encryptor, TopicRecord unpackedRecord, TopicRecordField field) {
+        String plaintext = field.getValue().toString();
+
+        try {
+            return encryptor.decryptAES(plaintext, unpackedRecord.getKey());
+        } catch (Exception e) {
+            return plaintext;
+        }
     }
 
     public static List<TopicRecord> readRecords(String topic, BaseRecords records, ProtoDeserializer deserializer) {
