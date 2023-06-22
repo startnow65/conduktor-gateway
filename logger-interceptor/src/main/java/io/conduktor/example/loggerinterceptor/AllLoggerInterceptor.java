@@ -31,6 +31,7 @@ public class AllLoggerInterceptor implements Interceptor<AbstractRequestResponse
     public AllLoggerInterceptor(String prefix) {
         this.prefix = prefix;
     }
+
     @Override
     public CompletionStage<AbstractRequestResponse> intercept(AbstractRequestResponse input, InterceptorContext interceptorContext) {
         log.warn("{}, a {} was sent/received", prefix, input.getClass());

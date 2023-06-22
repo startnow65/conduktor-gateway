@@ -15,18 +15,11 @@
 
 package io.conduktor.example.loggerinterceptor;
 
-import com.google.protobuf.DynamicMessage;
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClientConfig;
-import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.*;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,10 +38,10 @@ public class RecordUtils {
                         record.key(),
                         record.value(),
                         addHeader(record.headers(), key, value)
-                        );
+                );
                 newRecords.add(new RecordAndOffset(newRecord, record.offset()));
             });
-            batchMap.put(batch,newRecords);
+            batchMap.put(batch, newRecords);
         });
         var recordsOnly = batchMap.values()
                 .stream()
@@ -65,28 +58,22 @@ public class RecordUtils {
 
     }
 
-    public static String readRecords(BaseRecords records) {
-        StringBuilder strBuilder = new StringBuilder();
-        SchemaRegistryClientConfig srConfig = new SchemaRegistryClientConfig();
-//        SchemaRegistryClient srClient = new CachedSchemaRegistryClient("");
-        KafkaProtobufDeserializer<DynamicMessage> deserializer = new KafkaProtobufDeserializer<DynamicMessage>();
+    public static List<Set<TopicRecordField>> readRecords(String topic, BaseRecords records, ProtoDeserializer deserializer) {
+        List<Set<TopicRecordField>> res = new ArrayList<>();
 
         ((MemoryRecords) records).batches().forEach(batch -> {
             batch.forEach(record -> {
-                strBuilder.append("Key: ");
-                strBuilder.append(StandardCharsets.UTF_8.decode(record.key()));
-                strBuilder.append("\n");
+                byte[] recordData = Arrays.copyOfRange(
+                        record.value().array(),
+                        record.value().arrayOffset(),
+                        record.value().arrayOffset() + record.valueSize()
+                );
 
-                strBuilder.append("Value: ");
-                strBuilder.append(StandardCharsets.UTF_8.decode(record.value()));
-                strBuilder.append("\n");
-
-//                deserializer.deserialize()
-
+                res.add(deserializer.getRecordFieldValuesAndTags(topic, recordData));
             });
         });
 
-        return strBuilder.toString();
+        return res;
     }
 
     private static Header[] addHeader(Header[] headers, String key, String value) {
@@ -126,5 +113,7 @@ public class RecordUtils {
         }
     }
 
-    private static record RecordAndOffset(SimpleRecord record, Long offset) {}
+    private record RecordAndOffset(SimpleRecord record, Long offset) {
+    }
+
 }

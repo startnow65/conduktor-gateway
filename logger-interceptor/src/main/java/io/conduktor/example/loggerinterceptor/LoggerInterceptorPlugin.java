@@ -16,10 +16,11 @@
 package io.conduktor.example.loggerinterceptor;
 
 
-import io.conduktor.gateway.interceptor.Interceptor;
-import io.conduktor.gateway.interceptor.InterceptorConfigurationException;
 import io.conduktor.gateway.interceptor.InterceptorProvider;
 import io.conduktor.gateway.interceptor.Plugin;
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.requests.*;
 
@@ -28,21 +29,27 @@ import java.util.Map;
 
 @Slf4j
 public class LoggerInterceptorPlugin implements Plugin {
+    static String CONFIG_SCHEMA_REGISTRY_URL = "schemaRegistryUrl";
 
     @Override
     public List<InterceptorProvider<?>> getInterceptors(Map<String, Object> config) {
         String prefix = "";
         var loggingStyle = config.get("loggingStyle");
         if (loggingStyle.equals("obiWan")) {
-            prefix = "Hello there";
+            prefix = "Hello from cloud comms";
         }
+
+        SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(
+                List.of(config.get(CONFIG_SCHEMA_REGISTRY_URL).toString()), 5000,
+                List.of(new ProtobufSchemaProvider()), null
+        );
+
         return List.of(
                 new InterceptorProvider<>(AbstractRequestResponse.class, new AllLoggerInterceptor(prefix)),
                 new InterceptorProvider<>(FetchRequest.class, new FetchRequestLoggerInterceptor()),
                 new InterceptorProvider<>(FetchResponse.class, new FetchResponseLoggerInterceptor()),
-                new InterceptorProvider<>(ProduceRequest.class, new ProduceLoggerInterceptor()),
+                new InterceptorProvider<>(ProduceRequest.class, new ProduceLoggerInterceptor(schemaRegistryClient)),
                 new InterceptorProvider<>(AbstractResponse.class, new ResponseLoggerInterceptor())
         );
     }
-
 }

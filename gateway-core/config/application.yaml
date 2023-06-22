@@ -10,6 +10,8 @@ interceptors:
     config:
       - key: "loggingStyle"
         value: "obiWan"
+      - key: "schemaRegistryUrl"
+        value: "http://schema-registry:8081"
 hostPortConfiguration:
   gatewayBindHost: 0.0.0.0
   gatewayHost: gateway
