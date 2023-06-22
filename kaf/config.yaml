@@ -1,0 +1,15 @@
+clusters:
+- name: direct
+  brokers:
+  - kafka:9092
+  SASL: null
+  TLS: null
+  security-protocol: ""
+  version: "1.0.0"
+- name: gateway
+  brokers:
+  - gateway:6969
+  SASL: null
+  TLS: null
+  security-protocol: ""
+  version: "1.0.0"
