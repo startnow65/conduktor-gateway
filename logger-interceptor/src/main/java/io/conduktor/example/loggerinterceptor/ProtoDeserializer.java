@@ -60,7 +60,7 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
                 }
 
                 if (includeSchemaAndVersion) {
-                    return new ProtobufSchemaAndValue(schema, value);
+                    return new ProtobufSchemaIdAndValue(schema, value, id);
                 } else {
                     return value;
                 }
@@ -79,13 +79,11 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
                 record.value().arrayOffset() + record.valueSize()
         );
 
-        ProtobufSchemaAndValue schemaAndValue = (ProtobufSchemaAndValue) deserialize(true, topic, this.isKey, recordData);
+        ProtobufSchemaIdAndValue schemaAndValue = (ProtobufSchemaIdAndValue) deserialize(true, topic, this.isKey, recordData);
         DynamicMessage msg = (DynamicMessage) schemaAndValue.getValue();
         Map<String, Object> fields = new HashMap<>();
 
-        msg.getAllFields().forEach((field, object) -> {
-            fields.put(field.getName(), msg.getField(field));
-        });
+        msg.getAllFields().forEach((field, object) -> fields.put(field.getName(), msg.getField(field)));
 
         Map<String, Map<String, String>> fieldTags = new HashMap<>();
 
@@ -116,6 +114,19 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
             res.add(new TopicRecordField(name, value, fieldTags.getOrDefault(name, new HashMap<>())));
         });
 
-        return new TopicRecord(StandardCharsets.UTF_8.decode(record.key()).toString(), res);
+        return new TopicRecord(StandardCharsets.UTF_8.decode(record.key()).toString(), res, schemaAndValue.getSchema(), schemaAndValue.getId());
+    }
+
+    protected class ProtobufSchemaIdAndValue extends ProtobufSchemaAndValue {
+        private final int id;
+
+        public ProtobufSchemaIdAndValue(ProtobufSchema schema, Object value, int id) {
+            super(schema, value);
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
     }
 }

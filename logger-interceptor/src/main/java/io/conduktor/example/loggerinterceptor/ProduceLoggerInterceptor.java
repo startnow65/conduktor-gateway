@@ -22,22 +22,24 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.requests.ProduceRequest;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
     private final SchemaRegistryClient schemaRegistryClient;
 
     private final GatewayEncryption encryptor;
+    private final ProtoSerializer serializer;
+    private final ProtoDeserializer deserializer;
 
     public ProduceLoggerInterceptor(SchemaRegistryClient schemaRegistryClient,
                                     GatewayEncryption encryptor) {
 
         this.schemaRegistryClient = schemaRegistryClient;
         this.encryptor = encryptor;
+        this.serializer = new ProtoSerializer(schemaRegistryClient);
+        this.deserializer = new ProtoDeserializer(schemaRegistryClient);
     }
 
     @Override
@@ -50,49 +52,14 @@ public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
         input.data().topicData().forEach(topicProduceData -> {
             // for each partition
             topicProduceData.partitionData().forEach(partitionProduceData -> {
-                partitionProduceData.setRecords(RecordUtils.addHeaderToRecords(
-                        partitionProduceData.records(),
-                        "fromClient", getAuditEntry(interceptorContext)));
-            });
-        });
-
-        input.data().topicData().forEach(data -> {
-            data.partitionData().forEach(partitionData -> {
-                List<TopicRecord> records = RecordUtils.readRecords(data.name(), partitionData.records(),
-                        new ProtoDeserializer(schemaRegistryClient));
-                StringBuilder sb = new StringBuilder();
-
-                for (int i = 0; i < records.size(); i++) {
-                    sb.append("Record ").append(i).append(": ");
-                    TopicRecord record = records.get(i);
-
-                    record.getFields().forEach((TopicRecordField field) -> {
-                        AtomicBoolean shouldEncrypt = new AtomicBoolean(true);
-                        StringBuilder tagsSb = new StringBuilder(" [ ");
-
-                        field.getTags().forEach((String key, String value) -> {
-                            if (key.equals("hellofresh.tags.data_protection.v1.treatment") && value.equals("TREATMENT_NONE"))
-                                shouldEncrypt.set(false);
-
-                            tagsSb.append(key).append("=").append(value).append(",");
-                        });
-
-                        try {
-                            sb.append(field.getName())
-                                    .append(" = ")
-                                    .append(shouldEncrypt.get() ? encryptor.encryptAES(field.getValue().toString(), record.getKey()) : field.getValue());
-                        } catch (Exception e) {
-                            log.error(e.getMessage());
-                            throw new RuntimeException(e);
-                        }
-
-                        sb.append(tagsSb);
-                        sb.append("]; ");
-                    });
+                try {
+                    partitionProduceData.setRecords(RecordUtils.processBatches(topicProduceData.name(), RecordUtils.addHeaderToRecords(
+                            partitionProduceData.records(),
+                            "fromClient", getAuditEntry(interceptorContext)), deserializer, serializer, encryptor));
+                } catch (Exception e) {
+                    log.error(e.getMessage());
+                    throw new RuntimeException(e);
                 }
-
-                log.warn("Record to partition {}  of topic {} is {}",
-                        partitionData.index(), data.name(), sb);
             });
         });
 

@@ -15,11 +15,16 @@
 
 package io.conduktor.example.loggerinterceptor;
 
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
+import com.hellofresh.GatewayEncryption;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.*;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -56,6 +61,77 @@ public class RecordUtils {
         buf.flip();
         return MemoryRecords.readableRecords(buf);
 
+    }
+
+    public static BaseRecords processBatches(String topic, BaseRecords records, ProtoDeserializer deserializer, ProtoSerializer serializer, GatewayEncryption encryptor) throws Exception {
+        var batchMap = new LinkedHashMap<RecordBatch, List<RecordAndOffset>>();
+        AtomicInteger batchesTotalSize = new AtomicInteger();
+
+        for (MutableRecordBatch batch : ((MemoryRecords) records).batches()) {
+            batchesTotalSize.addAndGet(batch.sizeInBytes());
+            var newRecords = new LinkedList<RecordAndOffset>();
+
+            for (Iterator<org.apache.kafka.common.record.Record> it = batch.iterator(); it.hasNext(); ) {
+                org.apache.kafka.common.record.Record record = it.next();
+
+                // unpack record to see if we need to operate on one of its fields
+                TopicRecord unpackedRecord = deserializer.getRecord(topic, record);
+
+                ByteBuffer recordKey, recordValue;
+                Header[] recordHeaders;
+
+                if (unpackedRecord.isShouldModify()) {
+                    ProtobufSchema schema = unpackedRecord.getSchema();
+                    Descriptors.Descriptor msgDescriptor = schema.toDescriptor();
+                    DynamicMessage.Builder modifiedMessageBuilder = DynamicMessage.newBuilder(msgDescriptor);
+                    Map<String, Descriptors.FieldDescriptor> fieldDescriptorMap = new HashMap<>();
+                    msgDescriptor.getFields().forEach(field -> {
+                        fieldDescriptorMap.put(field.getName(), field);
+                    });
+
+                    for (TopicRecordField field : unpackedRecord.getFields()) {
+                        modifiedMessageBuilder.setField(
+                                fieldDescriptorMap.get(field.getName()),
+                                field.isShouldModify() ?
+                                        encryptor.encryptAES(field.getValue().toString(), unpackedRecord.getKey()) :
+                                        field.getValue()
+                        );
+                    }
+
+                    recordValue = ByteBuffer.wrap(serializer.serialize(topic, modifiedMessageBuilder.build(), schema, unpackedRecord.getSchemaId()));
+                    recordKey = StandardCharsets.UTF_8.encode(unpackedRecord.getKey());
+
+                    recordHeaders = addHeader(record.headers(), "gwModified", "true");
+                } else {
+                    recordKey = record.key();
+                    recordValue = record.value();
+                    recordHeaders = record.headers();
+                }
+
+                newRecords.add(new RecordAndOffset(new SimpleRecord(
+                        record.timestamp(),
+                        recordKey,
+                        recordValue,
+                        recordHeaders
+                ), record.offset()));
+            }
+
+            batchMap.put(batch, newRecords);
+        }
+
+        var recordsOnly = batchMap.values()
+                .stream()
+                .flatMap(recordAndOffsets -> recordAndOffsets.stream()
+                        .map(RecordAndOffset::record))
+                .toList();
+        int sizeEstimate = AbstractRecords.estimateSizeInBytes(RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, recordsOnly);
+        var buf = ByteBuffer.allocate(sizeEstimate + batchesTotalSize.get());
+        for (var entry : batchMap.entrySet()) {
+            writeRecords(buf, entry.getValue(), entry.getKey());
+        }
+
+        buf.flip();
+        return MemoryRecords.readableRecords(buf);
     }
 
     public static List<TopicRecord> readRecords(String topic, BaseRecords records, ProtoDeserializer deserializer) {
@@ -109,5 +185,4 @@ public class RecordUtils {
 
     private record RecordAndOffset(SimpleRecord record, Long offset) {
     }
-
 }
