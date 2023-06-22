@@ -58,18 +58,12 @@ public class RecordUtils {
 
     }
 
-    public static List<Set<TopicRecordField>> readRecords(String topic, BaseRecords records, ProtoDeserializer deserializer) {
-        List<Set<TopicRecordField>> res = new ArrayList<>();
+    public static List<TopicRecord> readRecords(String topic, BaseRecords records, ProtoDeserializer deserializer) {
+        List<TopicRecord> res = new ArrayList<>();
 
         ((MemoryRecords) records).batches().forEach(batch -> {
             batch.forEach(record -> {
-                byte[] recordData = Arrays.copyOfRange(
-                        record.value().array(),
-                        record.value().arrayOffset(),
-                        record.value().arrayOffset() + record.valueSize()
-                );
-
-                res.add(deserializer.getRecordFieldValuesAndTags(topic, recordData));
+                res.add(deserializer.getRecord(topic, record));
             });
         });
 

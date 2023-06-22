@@ -15,6 +15,7 @@
 
 package io.conduktor.example.loggerinterceptor;
 
+import com.hellofresh.GatewayEncryption;
 import io.conduktor.gateway.interceptor.Interceptor;
 import io.conduktor.gateway.interceptor.InterceptorContext;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
@@ -22,16 +23,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.requests.ProduceRequest;
 
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
     private final SchemaRegistryClient schemaRegistryClient;
 
-    public ProduceLoggerInterceptor(SchemaRegistryClient schemaRegistryClient) {
+    private final GatewayEncryption encryptor;
+
+    public ProduceLoggerInterceptor(SchemaRegistryClient schemaRegistryClient,
+                                    GatewayEncryption encryptor) {
+
         this.schemaRegistryClient = schemaRegistryClient;
+        this.encryptor = encryptor;
     }
 
     @Override
@@ -52,25 +58,35 @@ public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
 
         input.data().topicData().forEach(data -> {
             data.partitionData().forEach(partitionData -> {
-                List<Set<TopicRecordField>> records = RecordUtils.readRecords(data.name(), partitionData.records(), new ProtoDeserializer(schemaRegistryClient));
+                List<TopicRecord> records = RecordUtils.readRecords(data.name(), partitionData.records(),
+                        new ProtoDeserializer(schemaRegistryClient));
                 StringBuilder sb = new StringBuilder();
 
                 for (int i = 0; i < records.size(); i++) {
                     sb.append("Record ").append(i).append(": ");
+                    TopicRecord record = records.get(i);
 
-                    records.get(i).forEach((TopicRecordField field) -> {
-                        sb.append(field.getName())
-                                .append(" = ")
-                                .append(field.getValue())
-                                .append(" [ ");
+                    record.getFields().forEach((TopicRecordField field) -> {
+                        AtomicBoolean shouldEncrypt = new AtomicBoolean(true);
+                        StringBuilder tagsSb = new StringBuilder(" [ ");
 
                         field.getTags().forEach((String key, String value) -> {
-                            sb.append(key)
-                                    .append("=")
-                                    .append(value)
-                                    .append(",");
+                            if (key.equals("hellofresh.tags.data_protection.v1.treatment") && value.equals("TREATMENT_NONE"))
+                                shouldEncrypt.set(false);
+
+                            tagsSb.append(key).append("=").append(value).append(",");
                         });
 
+                        try {
+                            sb.append(field.getName())
+                                    .append(" = ")
+                                    .append(shouldEncrypt.get() ? encryptor.encryptAES(field.getValue().toString(), record.getKey()) : field.getValue());
+                        } catch (Exception e) {
+                            log.error(e.getMessage());
+                            throw new RuntimeException(e);
+                        }
+
+                        sb.append(tagsSb);
                         sb.append("]; ");
                     });
                 }

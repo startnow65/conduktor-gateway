@@ -1,25 +1,36 @@
-package org.hellofresh;
+package com.hellofresh;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Base64;
-import java.io.OutputStream;
-import javax.crypto.Cipher;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class GatewayEncryption {
-    private static final String VAULT_URL = "http://127.0.0.1:8200"; // Replace with your Vault URL
-    private  static String token = "root"; // Replace with your Vault token
-    String kvPath = "v1/kv/"; // Replace with the desired Vault API path
+    private final String vaultUrl;
 
+    // we should have a process to authenticate directly to vault to get this
+    private final String vaultToken;
+
+    // mount path of the secret engine used for kv storage
+    private final String vaultKVEnginePath;
+
+    public GatewayEncryption(String vaultUrl, String vaultToken, String vaultKVEnginePath) {
+        this.vaultUrl = vaultUrl;
+        this.vaultToken = vaultToken;
+        this.vaultKVEnginePath = vaultKVEnginePath;
+    }
 
     private String callVaultAPI(String token, String path) throws IOException {
-        URL url = new URL(VAULT_URL + "/" + path);
+        URL url = new URL(vaultUrl + "/" + path);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("X-Vault-Token", token);
@@ -30,16 +41,16 @@ public class GatewayEncryption {
             while ((line = reader.readLine()) != null) {
                 response.append(line);
             }
-        }catch (IOException e) {}
+        } catch (IOException e) {
+        }
 
         connection.disconnect();
-
 
         return response.toString();
     }
 
-    private  void putValueInVault(String token, String path, String value) throws IOException {
-        URL url = new URL(VAULT_URL + "/" + path);
+    private void putValueInVault(String token, String path, String value) throws IOException, IllegalStateException {
+        URL url = new URL(vaultUrl + "/" + path);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("X-Vault-Token", token);
@@ -52,17 +63,20 @@ public class GatewayEncryption {
         outputStream.flush();
 
         int responseCode = connection.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
+
+        if (responseCode >= 200 && responseCode < 300) {
             System.out.println("Value has been successfully put in Vault.");
         } else {
-            System.out.println("Error putting value in Vault. Response Code: " + responseCode);
+            String responseMessage = connection.getResponseMessage();
+            connection.disconnect();
+            throw new IllegalStateException("Unexpected response code from vault. Response code: " + responseCode + " Error Message: " + responseMessage);
         }
 
         connection.disconnect();
     }
 
     public String createDataKey(String token) throws IOException {
-        URL url = new URL(VAULT_URL + "/v1/encryption/datakey/plaintext/gateway");
+        URL url = new URL(vaultUrl + "/v1/encryption/datakey/plaintext/gateway");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("X-Vault-Token", token);
@@ -83,8 +97,8 @@ public class GatewayEncryption {
         return response.toString();
     }
 
-    public static String decryptCiphertext(String token, String ciphertext) throws IOException {
-        URL url = new URL(VAULT_URL + "/v1/encryption/decrypt/gateway");
+    private String decryptCiphertext(String token, String ciphertext) throws IOException {
+        URL url = new URL(vaultUrl + "/v1/encryption/decrypt/gateway");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("X-Vault-Token", token);
@@ -108,43 +122,32 @@ public class GatewayEncryption {
         return jsonNode.path("data").path("plaintext").asText();
     }
 
-    public String GetEncryptionKeyByUserId(String userid) {
+    public String GetEncryptionKeyByUserId(String userid) throws IOException {
         System.out.println(userid);
-        String response="";
-        try {
-            response = callVaultAPI(token, kvPath.concat(userid));
-            // Extract ciphertext from the response JSON
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode jsonNode = objectMapper.readTree(response.toString());
-            String ciphertext = jsonNode.path("data").path("ciphertext").asText();
+        String response = callVaultAPI(vaultToken, vaultKVEnginePath.concat(userid));
+        // Extract ciphertext from the response JSON
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(response.toString());
+        String ciphertext = jsonNode.path("data").path("ciphertext").asText();
 
-            if(ciphertext== null || ciphertext.equals("")){
-                String callVaultAPIForDataKey = createDataKey(token);
+        if (ciphertext == null || ciphertext.equals("")) {
+            String callVaultAPIForDataKey = createDataKey(vaultToken);
 
-                // Extract the plaintext from the response JSON
-                objectMapper = new ObjectMapper();
-                jsonNode = objectMapper.readTree(callVaultAPIForDataKey.toString());
-                String plaintext = jsonNode.path("data").path("plaintext").asText();
-                ciphertext = jsonNode.path("data").path("ciphertext").asText();
+            // Extract the plaintext from the response JSON
+            objectMapper = new ObjectMapper();
+            jsonNode = objectMapper.readTree(callVaultAPIForDataKey.toString());
+            String plaintext = jsonNode.path("data").path("plaintext").asText();
+            ciphertext = jsonNode.path("data").path("ciphertext").asText();
 
-                putValueInVault(token, kvPath.concat(userid), ciphertext);
+            putValueInVault(vaultToken, vaultKVEnginePath.concat(userid), ciphertext);
 
-
-                return plaintext;
-
-            }else
-            {
-                return decryptCiphertext(token, ciphertext);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            return plaintext;
+        } else {
+            return decryptCiphertext(vaultToken, ciphertext);
         }
-
-        return response;
     }
 
-    public  String encryptAES(String plaintext, String userid) throws Exception {
+    public String encryptAES(String plaintext, String userid) throws Exception {
         String s = GetEncryptionKeyByUserId(userid);
         String adjustKeyLength = adjustKeyLength(String.valueOf(s));
         byte[] keyBytes = adjustKeyLength.getBytes(StandardCharsets.UTF_8);
@@ -155,7 +158,7 @@ public class GatewayEncryption {
         return Base64.getEncoder().encodeToString(encryptedBytes);
     }
 
-    public  String decryptAES(String ciphertext, String userid) throws Exception {
+    public String decryptAES(String ciphertext, String userid) throws Exception {
         String s = GetEncryptionKeyByUserId(userid);
         String adjustKeyLength = adjustKeyLength(String.valueOf(s));
         byte[] keyBytes = adjustKeyLength.getBytes(StandardCharsets.UTF_8);
@@ -166,6 +169,7 @@ public class GatewayEncryption {
         byte[] decryptedBytes = cipher.doFinal(decodedBytes);
         return new String(decryptedBytes, StandardCharsets.UTF_8);
     }
+
     private String adjustKeyLength(String key) {
         if (key.length() < 16) {
             // Pad the key with zeros to reach the desired length

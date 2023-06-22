@@ -1,11 +1,9 @@
-package org.hellofresh;
-
-import static java.util.UUID.randomUUID;
+package com.hellofresh;
 
 public class Main {
     public static void main(String[] args) {
 
-        GatewayEncryption gatewayEncryption = new GatewayEncryption();
+        GatewayEncryption gatewayEncryption = new GatewayEncryption("http://127.0.0.1:8200", "root", "v1/kv/");
         //String getEncryptionKey = gatewayEncryption.GetEncryptionKeyByUserId("user-id");
         //String getEncryptionKey = gatewayEncryption.GetEncryptionKeyByUserId("user-id-2");
         //String getEncryptionKey = gatewayEncryption.GetEncryptionKeyByUserId("user-id-3");
@@ -27,7 +25,6 @@ public class Main {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
 
 
     }

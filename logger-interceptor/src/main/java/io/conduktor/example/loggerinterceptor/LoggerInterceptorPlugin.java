@@ -16,6 +16,7 @@
 package io.conduktor.example.loggerinterceptor;
 
 
+import com.hellofresh.GatewayEncryption;
 import io.conduktor.gateway.interceptor.InterceptorProvider;
 import io.conduktor.gateway.interceptor.Plugin;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
@@ -30,6 +31,9 @@ import java.util.Map;
 @Slf4j
 public class LoggerInterceptorPlugin implements Plugin {
     static String CONFIG_SCHEMA_REGISTRY_URL = "schemaRegistryUrl";
+    static String CONFIG_VAULT_URL = "vaultUrl";
+    static String CONFIG_VAULT_TOKEN = "vaultToken";
+    static String CONFIG_VAULT_KV_PATH = "vaultKVPath";
 
     @Override
     public List<InterceptorProvider<?>> getInterceptors(Map<String, Object> config) {
@@ -44,11 +48,16 @@ public class LoggerInterceptorPlugin implements Plugin {
                 List.of(new ProtobufSchemaProvider()), null
         );
 
+        GatewayEncryption encryptor = new GatewayEncryption(
+                config.get(CONFIG_VAULT_URL).toString(),
+                config.get(CONFIG_VAULT_TOKEN).toString(),
+                config.get(CONFIG_VAULT_KV_PATH).toString());
+
         return List.of(
                 new InterceptorProvider<>(AbstractRequestResponse.class, new AllLoggerInterceptor(prefix)),
                 new InterceptorProvider<>(FetchRequest.class, new FetchRequestLoggerInterceptor()),
                 new InterceptorProvider<>(FetchResponse.class, new FetchResponseLoggerInterceptor()),
-                new InterceptorProvider<>(ProduceRequest.class, new ProduceLoggerInterceptor(schemaRegistryClient)),
+                new InterceptorProvider<>(ProduceRequest.class, new ProduceLoggerInterceptor(schemaRegistryClient, encryptor)),
                 new InterceptorProvider<>(AbstractResponse.class, new ResponseLoggerInterceptor())
         );
     }

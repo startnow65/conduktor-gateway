@@ -12,6 +12,12 @@ interceptors:
         value: "obiWan"
       - key: "schemaRegistryUrl"
         value: "http://schema-registry:8081"
+      - key: "vaultUrl"
+        value: "http://vault:8200"
+      - key: "vaultToken"
+        value: "root"
+      - key: "vaultKVPath"
+        value: "v1/kv/"
 hostPortConfiguration:
   gatewayBindHost: 0.0.0.0
   gatewayHost: gateway

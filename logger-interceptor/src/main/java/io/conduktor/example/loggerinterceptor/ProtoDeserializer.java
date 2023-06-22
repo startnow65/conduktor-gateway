@@ -12,14 +12,13 @@ import io.confluent.kafka.serializers.protobuf.ProtobufSchemaAndValue;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.common.errors.SerializationException;
+import org.apache.kafka.common.record.Record;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage> {
     public ProtoDeserializer(SchemaRegistryClient client) {
@@ -73,7 +72,13 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
         }
     }
 
-    public Set<TopicRecordField> getRecordFieldValuesAndTags(String topic, byte[] recordData) {
+    public TopicRecord getRecord(String topic, Record record) {
+        byte[] recordData = Arrays.copyOfRange(
+                record.value().array(),
+                record.value().arrayOffset(),
+                record.value().arrayOffset() + record.valueSize()
+        );
+
         ProtobufSchemaAndValue schemaAndValue = (ProtobufSchemaAndValue) deserialize(true, topic, this.isKey, recordData);
         DynamicMessage msg = (DynamicMessage) schemaAndValue.getValue();
         Map<String, Object> fields = new HashMap<>();
@@ -111,6 +116,6 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
             res.add(new TopicRecordField(name, value, fieldTags.getOrDefault(name, new HashMap<>())));
         });
 
-        return res;
+        return new TopicRecord(StandardCharsets.UTF_8.decode(record.key()).toString(), res);
     }
 }

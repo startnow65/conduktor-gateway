@@ -9,8 +9,9 @@
     <modules>
         <module>gateway-core</module>
 <!--        <module>gateway-test</module>-->
-        <module>logger-interceptor</module>
+        <module>gateway-encryption</module>
         <module>interceptor-framework</module>
+        <module>logger-interceptor</module>
     </modules>
 
     <properties>
@@ -51,8 +52,6 @@
             <version>${log4j2.version}</version>
             <scope>${log4j2.scope}</scope>
         </dependency>
-
-
 
         <dependency>
             <groupId>org.slf4j</groupId>
