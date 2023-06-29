@@ -34,6 +34,8 @@ public class LoggerInterceptorPlugin implements Plugin {
     static String CONFIG_VAULT_URL = "vaultUrl";
     static String CONFIG_VAULT_TOKEN = "vaultToken";
     static String CONFIG_VAULT_KV_PATH = "vaultKVPath";
+    static String CONFIG_FIELD_TAG_KEY_NO_ENCRYPT = "fieldTagKeyNoEncrypt";
+    static String CONFIG_FIELD_TAG_VALUE_NO_ENCRYPT = "fieldTagValueNoEncrypt";
 
     @Override
     public List<InterceptorProvider<?>> getInterceptors(Map<String, Object> config) {
@@ -53,11 +55,19 @@ public class LoggerInterceptorPlugin implements Plugin {
                 config.get(CONFIG_VAULT_TOKEN).toString(),
                 config.get(CONFIG_VAULT_KV_PATH).toString());
 
+        ProtoDeserializer deserializer = new ProtoDeserializer(schemaRegistryClient,
+                config.get(CONFIG_FIELD_TAG_KEY_NO_ENCRYPT).toString(),
+                config.get(CONFIG_FIELD_TAG_VALUE_NO_ENCRYPT).toString());
+
+        ProtoSerializer serializer = new ProtoSerializer(schemaRegistryClient);
+
         return List.of(
                 new InterceptorProvider<>(AbstractRequestResponse.class, new AllLoggerInterceptor(prefix)),
                 new InterceptorProvider<>(FetchRequest.class, new FetchRequestLoggerInterceptor()),
-                new InterceptorProvider<>(FetchResponse.class, new FetchResponseLoggerInterceptor(schemaRegistryClient, encryptor)),
-                new InterceptorProvider<>(ProduceRequest.class, new ProduceLoggerInterceptor(schemaRegistryClient, encryptor)),
+                new InterceptorProvider<>(FetchResponse.class,
+                        new FetchResponseLoggerInterceptor(encryptor, deserializer, serializer)),
+                new InterceptorProvider<>(ProduceRequest.class,
+                        new ProduceLoggerInterceptor(encryptor, deserializer, serializer)),
                 new InterceptorProvider<>(AbstractResponse.class, new ResponseLoggerInterceptor())
         );
     }

@@ -18,7 +18,6 @@ package io.conduktor.example.loggerinterceptor;
 import com.hellofresh.GatewayEncryption;
 import io.conduktor.gateway.interceptor.Interceptor;
 import io.conduktor.gateway.interceptor.InterceptorContext;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.requests.FetchResponse;
 
@@ -31,29 +30,27 @@ public class FetchResponseLoggerInterceptor implements Interceptor<FetchResponse
     private final ProtoSerializer serializer;
     private final ProtoDeserializer deserializer;
 
-    public FetchResponseLoggerInterceptor(SchemaRegistryClient schemaRegistryClient,
-                                          GatewayEncryption encryptor) {
+    public FetchResponseLoggerInterceptor(GatewayEncryption encryptor,
+                                          ProtoDeserializer deserializer, ProtoSerializer serializer) {
 
         this.encryptor = encryptor;
-        this.serializer = new ProtoSerializer(schemaRegistryClient);
-        this.deserializer = new ProtoDeserializer(schemaRegistryClient);
+        this.serializer = serializer;
+        this.deserializer = deserializer;
     }
 
     @Override
     public CompletionStage<FetchResponse> intercept(FetchResponse input, InterceptorContext interceptorContext) {
         log.warn("Fetch from client {} was responded to", interceptorContext.inFlightInfo().get("source"));
 
-        input.data().responses().forEach(response -> {
-            response.partitions().forEach(partitionData -> {
-                try {
-                    partitionData.setRecords(RecordUtils.processBatches(response.topic(), partitionData.records(),
-                            deserializer, serializer, encryptor, false));
-                } catch (Exception e) {
-                    log.error(e.getMessage());
-                    throw new RuntimeException(e);
-                }
-            });
-        });
+        input.data().responses().forEach((response) -> response.partitions().forEach(partitionData -> {
+            try {
+                partitionData.setRecords(RecordUtils.processBatches(response.topic(), partitionData.records(),
+                        deserializer, serializer, encryptor, false));
+            } catch (Exception e) {
+                log.error(e.getMessage());
+                throw new RuntimeException(e);
+            }
+        }));
 
         return CompletableFuture.completedFuture(input);
     }

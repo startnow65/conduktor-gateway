@@ -18,7 +18,6 @@ package io.conduktor.example.loggerinterceptor;
 import com.hellofresh.GatewayEncryption;
 import io.conduktor.gateway.interceptor.Interceptor;
 import io.conduktor.gateway.interceptor.InterceptorContext;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.requests.ProduceRequest;
 
@@ -31,12 +30,12 @@ public class ProduceLoggerInterceptor implements Interceptor<ProduceRequest> {
     private final ProtoSerializer serializer;
     private final ProtoDeserializer deserializer;
 
-    public ProduceLoggerInterceptor(SchemaRegistryClient schemaRegistryClient,
-                                    GatewayEncryption encryptor) {
+    public ProduceLoggerInterceptor(GatewayEncryption encryptor,
+                                    ProtoDeserializer deserializer, ProtoSerializer serializer) {
 
         this.encryptor = encryptor;
-        this.serializer = new ProtoSerializer(schemaRegistryClient);
-        this.deserializer = new ProtoDeserializer(schemaRegistryClient);
+        this.serializer = serializer;
+        this.deserializer = deserializer;
     }
 
     @Override

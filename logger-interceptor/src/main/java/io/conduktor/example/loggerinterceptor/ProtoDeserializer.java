@@ -21,8 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage> {
-    public ProtoDeserializer(SchemaRegistryClient client) {
+    private final String fieldTagKeyNoEncrypt, fieldTagValueNoEncrypt;
+
+    public ProtoDeserializer(SchemaRegistryClient client, String fieldTagKeyNoEncrypt, String fieldTagValueNoEncrypt) {
         super(client);
+
+        this.fieldTagKeyNoEncrypt = fieldTagKeyNoEncrypt;
+        this.fieldTagValueNoEncrypt = fieldTagValueNoEncrypt;
     }
 
     @Override
@@ -85,7 +90,7 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
 
         msg.getAllFields().forEach((field, object) -> fields.put(field.getName(), msg.getField(field)));
 
-        Map<String, Map<String, String>> fieldTags = new HashMap<>();
+        Map<String, FieldTags> fieldTagsMap = new HashMap<>();
 
         ProtoFileElement protoFileElement = schemaAndValue.getSchema().rawSchema();
         String packageNamePrefix = protoFileElement.getPackageName() + ".";
@@ -101,23 +106,33 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
             msgElement.getFields().forEach((FieldElement field) -> {
                 Map<String, String> tags = new HashMap<>();
 
-                field.getOptions().forEach((OptionElement optionElement) -> {
-                    tags.put(optionElement.getName(), optionElement.getValue().toString());
-                });
+                field.getOptions().forEach((OptionElement optionElement) ->
+                        tags.put(optionElement.getName(), optionElement.getValue().toString()));
 
-                fieldTags.put(field.getName(), tags);
+                fieldTagsMap.put(field.getName(), new FieldTags(tags, shouldModifyField(tags)));
             });
         });
 
-        Set<TopicRecordField> res = new HashSet();
+        Set<TopicRecordField> res = new HashSet<>();
         fields.forEach((String name, Object value) -> {
-            res.add(new TopicRecordField(name, value, fieldTags.getOrDefault(name, new HashMap<>())));
+            FieldTags fieldTags = fieldTagsMap.getOrDefault(name, null);
+            res.add(new TopicRecordField(name, value, fieldTags != null && fieldTags.shouldModify));
         });
 
         return new TopicRecord(StandardCharsets.UTF_8.decode(record.key()).toString(), res, schemaAndValue.getSchema(), schemaAndValue.getId());
     }
 
-    protected class ProtobufSchemaIdAndValue extends ProtobufSchemaAndValue {
+    private boolean shouldModifyField(Map<String, String> tags) {
+        for (Map.Entry<String, String> fieldTag : tags.entrySet()) {
+            if (fieldTag.getKey().equals(fieldTagKeyNoEncrypt)
+                    && fieldTag.getValue().equals(fieldTagValueNoEncrypt))
+                return false;
+        }
+
+        return true;
+    }
+
+    protected static class ProtobufSchemaIdAndValue extends ProtobufSchemaAndValue {
         private final int id;
 
         public ProtobufSchemaIdAndValue(ProtobufSchema schema, Object value, int id) {
@@ -128,5 +143,8 @@ public class ProtoDeserializer extends KafkaProtobufDeserializer<DynamicMessage>
         public int getId() {
             return id;
         }
+    }
+
+    protected record FieldTags(Map<String, String> tags, boolean shouldModify) {
     }
 }

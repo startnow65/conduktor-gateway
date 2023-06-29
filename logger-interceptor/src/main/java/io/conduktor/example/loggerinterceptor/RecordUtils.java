@@ -65,14 +65,8 @@ public class RecordUtils {
 
     /**
      * Processes a batch, unpacks the raw record and find fields that should be encrypted/decrypted
-     * @param topic
-     * @param records
-     * @param deserializer
-     * @param serializer
-     * @param encryptor
+     *
      * @param encrypt When true, relevant fields in records in the batch is encrypted, otherwise, they are decrypted
-     * @return
-     * @throws Exception
      */
     public static BaseRecords processBatches(String topic, BaseRecords records, ProtoDeserializer deserializer, ProtoSerializer serializer, GatewayEncryption encryptor, boolean encrypt) throws Exception {
         var batchMap = new LinkedHashMap<RecordBatch, List<RecordAndOffset>>();
@@ -82,10 +76,12 @@ public class RecordUtils {
             batchesTotalSize.addAndGet(batch.sizeInBytes());
             var newRecords = new LinkedList<RecordAndOffset>();
 
-            for (Iterator<org.apache.kafka.common.record.Record> it = batch.iterator(); it.hasNext(); ) {
-                org.apache.kafka.common.record.Record record = it.next();
-
-                // unpack record to see if we need to operate on one of its fields
+            for (org.apache.kafka.common.record.Record record : batch) {
+                /**
+                 * Unpack record to see if we need to operate on one of its fields
+                 * We can for sure do this better by only looking at the schema and
+                 * possibly also cache this knowledge since schemas are immutable
+                 */
                 TopicRecord unpackedRecord = deserializer.getRecord(topic, record);
 
                 ByteBuffer recordKey, recordValue;
@@ -96,9 +92,7 @@ public class RecordUtils {
                     Descriptors.Descriptor msgDescriptor = schema.toDescriptor();
                     DynamicMessage.Builder modifiedMessageBuilder = DynamicMessage.newBuilder(msgDescriptor);
                     Map<String, Descriptors.FieldDescriptor> fieldDescriptorMap = new HashMap<>();
-                    msgDescriptor.getFields().forEach(field -> {
-                        fieldDescriptorMap.put(field.getName(), field);
-                    });
+                    msgDescriptor.getFields().forEach(field -> fieldDescriptorMap.put(field.getName(), field));
 
                     for (TopicRecordField field : unpackedRecord.getFields()) {
                         modifiedMessageBuilder.setField(
@@ -155,18 +149,6 @@ public class RecordUtils {
         } catch (Exception e) {
             return plaintext;
         }
-    }
-
-    public static List<TopicRecord> readRecords(String topic, BaseRecords records, ProtoDeserializer deserializer) {
-        List<TopicRecord> res = new ArrayList<>();
-
-        ((MemoryRecords) records).batches().forEach(batch -> {
-            batch.forEach(record -> {
-                res.add(deserializer.getRecord(topic, record));
-            });
-        });
-
-        return res;
     }
 
     private static Header[] addHeader(Header[] headers, String key, String value) {
