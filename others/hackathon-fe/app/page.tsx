@@ -1,30 +1,49 @@
 'use client'
 
 import { useState } from "react"
+import { toast } from 'react-toastify';
 
+const defaultObj = {
+    name: '',
+    email: '',
+    favourite_food: '', // intentional spelling error!
+    height: 0
+}
 export default function Home() {
-
-    const [data, setDate] = useState({
-        name: '',
-        email: '',
-        favourite_food: '', // intentional spelling error!
-        height: 0
-    });
+    const [data, setDate] = useState(defaultObj as any);
+    const [isLoading, setIsLoading] = useState(false);
 
     async function submitForm(e: { preventDefault: () => void }) {
         e.preventDefault()
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/publish`, {
-            method: 'POST',
-            body: JSON.stringify({
-                name: data.name,
-                email: data.email,
-                favourite_food: data.favourite_food,
-                height: +data.height
-            }),
-            headers: {
-                'Content-type': 'application/json; charset=UTF-8',
-            },
-        })
+
+        if (isLoading) return;
+
+        if (!data.name?.length || !data.email?.length || !data.favourite_food?.length) {
+            toast.error('Invalid input ...');
+            return;
+        }
+
+        try {
+            setIsLoading(true)
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/publish`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: data.name,
+                    email: data.email,
+                    favourite_food: data.favourite_food,
+                    height: +data.height
+                }),
+                headers: {
+                    'Content-type': 'application/json; charset=UTF-8',
+                },
+            })
+        } catch (e) {
+            console.log(e);
+        } finally {
+            toast.success('Published!');
+            setDate(defaultObj);
+            setIsLoading(false);
+        }
     }
 
     function handleChange(e: any) {
@@ -111,8 +130,9 @@ export default function Home() {
 
             <div className="mt-6 flex items-center justify-end gap-x-6">
                 <button
+                    disabled={isLoading}
                     type="submit"
-                    className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    className="flex items-center justify-center rounded-md w-32 h-12 px-3 py-2 text-sm font-semibold text-white shadow-sm bg-indigo-600 hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 >
                     Publish
                 </button>

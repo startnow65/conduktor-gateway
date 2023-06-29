@@ -1,5 +1,5 @@
-export default function ListLoading() {
+export default function Loading() {
     return (
-        <div>Loading ...</div>
+        <p>Loading ...</p>
     )
 }

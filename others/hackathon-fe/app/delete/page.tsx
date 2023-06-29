@@ -1,22 +1,34 @@
 'use client'
 
 import { useState } from "react"
+import { toast } from 'react-toastify';
 
 export default function Home() {
-
     const [data, setDate] = useState({
         email: '',
     });
 
     async function submitForm(e: { preventDefault: () => void }) {
-        e.preventDefault()
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/delete`, {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: {
-                'Content-type': 'application/json; charset=UTF-8',
-            },
-        })
+        e.preventDefault();
+
+        if (!data.email?.length) {
+            toast.error('Invalid input ...');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/delete`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-type': 'application/json; charset=UTF-8',
+                },
+            })
+        } catch (e) {
+            console.log(e);
+        } finally {
+            toast.success('Done!');
+        }
     }
 
     function handleChange(e: any) {
