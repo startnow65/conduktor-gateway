@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package hellofresh.stream.customer.v1beta2;
+
+option go_package = "github.com/kanapuli/http-to-kafka/hellofresh/stream/customer/v1beta2";
+option php_namespace = "HelloFresh\\Proto\\Stream\\Customer\\V1beta2";
+option php_metadata_namespace = "HelloFresh\\Proto\\Metadata\\Stream\\Customer\\V1beta2";
+option java_multiple_files = true;
+option java_string_check_utf8 = true;
+option java_outer_classname = "CustomerProto";
+option java_package = "com.hellofresh.proto.stream.customer.v1beta2";
+option py_generic_services = false;
+
+import "hellofresh/tags/data_protection/v1/data_protection_tags.proto";
+
+// CustomerValue contains details about the Customer
+// including PII such as name.
+message CustomerValue {
+  // The Customer full name.
+  //
+  // [first_name + " " + last_name] from Intfood DB.
+  //
+  // first_name = Max 255 Characters UTF-8
+  // last_name = Max 255 Characters UTF-8
+  // Total Max 511 Characters
+  //
+  // This field is usually empty at the time of registration,
+  // customers will provide their name during later steps of the checkout.
+  // When customers register using social login, most of the times
+  // the name will be present.
+  //
+  // Attention: Personal Identifiable Information (PII)
+  string name = 1 [
+    (hellofresh.tags.data_protection.v1.treatment) = TREATMENT_REPLACE_WITH
+  ];
+
+  // The Customer email.
+  //
+  // Attention: Personal Identifiable Information (PII)
+  // Alias: hellofresh.alias.EmailAddress
+  string email = 2 [
+    (hellofresh.tags.data_protection.v1.treatment) = TREATMENT_REPLACE_WITH,
+    (hellofresh.tags.data_protection.v1.replace_with) = REPLACE_WITH_REDACTED
+  ];
+
+  // The Customer's favourite food
+  // Some field to demonstrate non-pii data
+  string favourite_food = 3 [
+    (hellofresh.tags.data_protection.v1.treatment) = TREATMENT_NONE
+  ];
+
+  // The Customer's height in meters.
+  // Some field to demonstrate non-pii data
+  float height = 4 [
+    (hellofresh.tags.data_protection.v1.treatment) = TREATMENT_NONE
+  ];
+}

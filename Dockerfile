@@ -13,8 +13,9 @@ RUN mvn clean package
 
 FROM ubuntu/jre:17-22.04_2
 WORKDIR /app
+
 COPY --from=builder /app/gateway-core/target/gateway-core-0.5.0-SNAPSHOT.jar ./
 COPY --from=builder /app/logger-interceptor/target/logger-interceptor-0.5.0-SNAPSHOT.jar ./plugins/
 COPY --from=builder /app/gateway-encryption/target/gateway-encryption-0.5.0-SNAPSHOT.jar ./plugins/
-COPY --from=builder /app/gateway-core/config ./
+
 ENTRYPOINT [ "/opt/java/bin/java", "--class-path", "/app/*:/app/plugins/*", "io.conduktor.gateway.Bootstrap" ]

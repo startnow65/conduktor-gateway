@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+//option go_package = "github.com/kanapuli/http-to-kafka/proto";
+option go_package = "proto/customer";
+
+// CustomerValue contains details about the Customer
+// including PII such as name.
+message CustomerValue {
+  // The Customer full name.
+  //
+  // [first_name + " " + last_name] from Intfood DB.
+  //
+  // first_name = Max 255 Characters UTF-8
+  // last_name = Max 255 Characters UTF-8
+  // Total Max 511 Characters
+  //
+  // This field is usually empty at the time of registration,
+  // customers will provide their name during later steps of the checkout.
+  // When customers register using social login, most of the times
+  // the name will be present.
+  //
+  // Attention: Personal Identifiable Information (PII)
+  string name = 1 ;
+  // The Customer email.
+  //
+  // Attention: Personal Identifiable Information (PII)
+  string email = 2 ;
+  // The Customer's favourite food
+  // Some field to demonstrate non-pii data
+  string favourite_food = 3; 
+  // The Customer's height in meters.
+  // Some field to demonstrate non-pii data
+  float height = 4 ;
+}

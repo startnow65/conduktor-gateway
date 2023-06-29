@@ -1,0 +1,21 @@
+syntax = "proto3";
+package hellofresh.tags.disaster_recovery.v1;
+option go_package = "kafka-schema-test/out/hellofresh/tags/disasterrecovery/v1";
+//option go_package = "github.com/kanapuli/http-to-kafka/hellofresh/tags/disasterrecovery";
+import "google/protobuf/descriptor.proto";
+
+// Enumerates backup strategies for a Kafka topic
+enum BackupStrategy {
+  BACKUP_STRATEGY_UNSPECIFIED = 0;
+
+  // No backups required
+  BACKUP_STRATEGY_NONE = 1;
+
+  // Backup offsite
+  BACKUP_STRATEGY_OFFSITE = 2;
+}
+
+// Defines Kafka topic-level tags for the Disaster recovery domain
+extend google.protobuf.MessageOptions {
+  optional BackupStrategy backup_strategy = 50000;
+}

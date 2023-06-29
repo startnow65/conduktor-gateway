@@ -1,0 +1,42 @@
+kafkaSelector:
+  type: env
+  # path: /app/kafka.config
+  prefix: KAFKA_
+interceptors:
+- name: loggingInterceptor
+  pluginClass: io.conduktor.example.loggerinterceptor.LoggerInterceptorPlugin
+  timeoutMs: 30000 #optional, default timeoutMs = 30s
+  priority: 100
+  config:
+  - key: "loggingStyle"
+    value: "obiWan"
+  - key: "schemaRegistryUrl"
+    value: "http://schema-registry:8081"
+  - key: "fieldTagKeyNoEncrypt"
+    value: "hellofresh.tags.data_protection.v1.treatment"
+  - key: "fieldTagValueNoEncrypt"
+    value: "TREATMENT_NONE"
+  - key: "vaultUrl"
+    value: "http://vault:8200"
+  - key: "vaultToken"
+    value: "root"
+  - key: "vaultKVPath"
+    value: "v1/kv/"
+hostPortConfiguration:
+  gatewayBindHost: 0.0.0.0
+  gatewayHost: gateway
+  portRange: 6969:6975
+authenticationConfig:
+  authenticatorType: NONE
+  userPool: []
+  # exponentialBackoff:
+  #   multiplier: 2
+  #   backoffMaxMs: 5000
+  sslConfig:
+    updateContextIntervalMinutes: 5
+    keyStore:
+      keyStorePath: None
+      keyStorePassword: None
+      keyPassword: None
+      keyStoreType: jks
+      updateIntervalMsecs: 600000
